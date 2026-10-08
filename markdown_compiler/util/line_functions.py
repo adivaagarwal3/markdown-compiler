@@ -2,6 +2,7 @@
 Each of the functions in this file takes a single line of input and transforms the line in some way.
 '''
 
+
 def compile_headers(line):
     '''
     Convert markdown headers into <h1>,<h2>,etc tags.
@@ -26,7 +27,35 @@ def compile_headers(line):
     >>> compile_headers('      # this is not a header')
     '      # this is not a header'
     '''
+    if line[:7] == '###### ':
+        return '<h6>' + line[6:] + '</h6>'
+    if line[:6] == '##### ':
+        return '<h5>' + line[5:] + '</h5>'
+    if line[:5] == '#### ':
+        return '<h4>' + line[4:] + '</h4>'
+    if line[:4] == '### ':
+        return '<h3>' + line[3:] + '</h3>'
+    if line[:3] == '## ':
+        return '<h2>' + line[2:] + '</h2>'
+    if line[:2] == '# ':
+        return '<h1>' + line[1:] + '</h1>'
     return line
+
+
+def _replace_delim(line, delim, tag):
+    '''
+    Wrap text between matching delimiters in an HTML tag.
+    Unmatched delimiters are left unchanged.
+    '''
+    while True:
+        start = line.find(delim)
+        if start == -1:
+            return line
+        end = line.find(delim, start + len(delim))
+        if end == -1:
+            return line
+        inner = line[start + len(delim):end]
+        line = line[:start] + '<' + tag + '>' + inner + '</' + tag + '>' + line[end + len(delim):]
 
 
 def compile_italic_star(line):
@@ -50,7 +79,7 @@ def compile_italic_star(line):
     >>> compile_italic_star('*')
     '*'
     '''
-    return line
+    return _replace_delim(line, '*', 'i')
 
 
 def compile_italic_underscore(line):
@@ -71,7 +100,7 @@ def compile_italic_underscore(line):
     >>> compile_italic_underscore('_')
     '_'
     '''
-    return line
+    return _replace_delim(line, '_', 'i')
 
 
 def compile_strikethrough(line):
@@ -94,7 +123,7 @@ def compile_strikethrough(line):
     >>> compile_strikethrough('~~')
     '~~'
     '''
-    return line
+    return _replace_delim(line, '~~', 'ins')
 
 
 def compile_bold_stars(line):
@@ -115,7 +144,7 @@ def compile_bold_stars(line):
     >>> compile_bold_stars('**')
     '**'
     '''
-    return line
+    return _replace_delim(line, '**', 'b')
 
 
 def compile_bold_underscore(line):
@@ -136,7 +165,7 @@ def compile_bold_underscore(line):
     >>> compile_bold_underscore('__')
     '__'
     '''
-    return line
+    return _replace_delim(line, '__', 'b')
 
 
 def compile_code_inline(line):
@@ -166,7 +195,22 @@ def compile_code_inline(line):
     >>> compile_code_inline('```python3')
     '```python3'
     '''
-    return line
+    pos = 0
+    while True:
+        start = line.find('`', pos)
+        if start == -1:
+            return line
+        end = line.find('`', start + 1)
+        if end == -1:
+            return line
+        inner = line[start + 1:end]
+        if inner == '':
+            pos = end + 1
+            continue
+        inner = inner.replace('<', '&lt;').replace('>', '&gt;')
+        new = '<code>' + inner + '</code>'
+        line = line[:start] + new + line[end + 1:]
+        pos = start + len(new)
 
 
 def compile_links(line):
@@ -186,7 +230,22 @@ def compile_links(line):
     >>> compile_links('this is wrong: [course webpage](https://github.com/mikeizbicki/cmc-csci040')
     'this is wrong: [course webpage](https://github.com/mikeizbicki/cmc-csci040'
     '''
-    return line
+    pos = 0
+    while True:
+        a = line.find('[', pos)
+        if a == -1:
+            return line
+        b = line.find('](', a)
+        if b == -1:
+            return line
+        c = line.find(')', b)
+        if c == -1:
+            return line
+        text = line[a + 1:b]
+        url = line[b + 2:c]
+        new = '<a href="' + url + '">' + text + '</a>'
+        line = line[:a] + new + line[c + 1:]
+        pos = a + len(new)
 
 
 def compile_images(line):
@@ -205,4 +264,19 @@ def compile_images(line):
     >>> compile_images('This is an image of Mike Izbicki: ![Mike Izbicki](https://avatars1.githubusercontent.com/u/1052630?v=2&s=460)')
     'This is an image of Mike Izbicki: <img src="https://avatars1.githubusercontent.com/u/1052630?v=2&s=460" alt="Mike Izbicki" />'
     '''
-    return line
+    pos = 0
+    while True:
+        a = line.find('![', pos)
+        if a == -1:
+            return line
+        b = line.find('](', a)
+        if b == -1:
+            return line
+        c = line.find(')', b)
+        if c == -1:
+            return line
+        text = line[a + 2:b]
+        url = line[b + 2:c]
+        new = '<img src="' + url + '" alt="' + text + '" />'
+        line = line[:a] + new + line[c + 1:]
+        pos = a + len(new)
